@@ -38,8 +38,10 @@ export async function pickDirectory(): Promise<PickResult> {
       return { mode: "ok", name: handle.name, path: "~/" + handle.name };
     } catch (e: any) {
       if (e?.name === "AbortError") return { mode: "cancelled" };
+      // SecurityError / NotAllowedError / etc. — surface as "no API" so the
+      // caller falls back to the inline form instead of going silent.
       console.warn("Browser directory picker failed:", e);
-      return { mode: "cancelled" };
+      return { mode: "none" };
     }
   }
   return { mode: "none" };

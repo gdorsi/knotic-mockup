@@ -140,10 +140,12 @@ function ProjectRow({
 }) {
   const [open, setOpen] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const openProject = useStore((s) => s.openProject);
   const startSession = useStore((s) => s.startSession);
   const isActive = "projectId" in view && (view as any).projectId === project.id;
   const menuRef = useRef<HTMLDivElement>(null);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -206,19 +208,32 @@ function ProjectRow({
             <CogIcon />
           </button>
           <button
+            ref={addBtnRef}
             className={"proj-add" + (menuOpen ? " open" : "")}
             title="New session"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             onClick={(e) => {
               e.stopPropagation();
+              if (!menuOpen && addBtnRef.current) {
+                const r = addBtnRef.current.getBoundingClientRect();
+                const menuWidth = 240;
+                setMenuPos({
+                  top: r.bottom + 4,
+                  left: Math.max(8, r.right - menuWidth),
+                });
+              }
               setMenuOpen((x) => !x);
             }}
           >
             +
           </button>
           {menuOpen && (
-            <div className="proj-menu" role="menu">
+            <div
+              className="proj-menu"
+              role="menu"
+              style={{ top: menuPos.top, left: menuPos.left }}
+            >
               <button
                 className="proj-menu-item"
                 onClick={(e) => {
