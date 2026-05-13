@@ -24,8 +24,11 @@ export async function pickDirectory(): Promise<PickResult> {
       const path = Array.isArray(selected) ? selected[0] : selected;
       return { mode: "ok", path, name: basename(path) };
     } catch (e) {
-      console.warn("Tauri directory picker failed:", e);
-      return { mode: "cancelled" };
+      // Plugin not registered, capability missing, or some other runtime
+      // failure. Surface as "none" so the caller falls back to the inline
+      // form — a silent click is the worst outcome.
+      console.error("Tauri directory picker failed:", e);
+      return { mode: "none" };
     }
   }
   if (typeof w.showDirectoryPicker === "function") {
