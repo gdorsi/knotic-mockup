@@ -2,36 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "../state/store";
 import type { Project, Session, SessionKind } from "../state/types";
 import { BranchIcon } from "./BranchReview";
-import { pickDirectory } from "../pi/picker";
 
 export function Sidebar() {
   const projects = useStore((s) => s.projects);
   const setView = useStore((s) => s.setView);
   const view = useStore((s) => s.view);
   const addProject = useStore((s) => s.addProject);
-  const [addingOpen, setAddingOpen] = useState(false);
-  const [picking, setPicking] = useState(false);
 
-  const onAddClick = async () => {
-    if (addingOpen) {
-      setAddingOpen(false);
-      return;
-    }
-    setPicking(true);
-    try {
-      const res = await pickDirectory();
-      if (res.mode === "ok") {
-        addProject(res.name, res.path);
-        return;
-      }
-      if (res.mode === "none") {
-        // No native picker — fall back to inline form
-        setAddingOpen(true);
-      }
-      // mode === "cancelled" → do nothing
-    } finally {
-      setPicking(false);
-    }
+  const onAddClick = () => {
+    const { name, path } = randomProjectEntry(projects.map((p) => p.name));
+    addProject(name, path);
   };
 
   return (
@@ -42,16 +22,13 @@ export function Sidebar() {
           <span className="logo-text">knotic</span>
         </div>
         <button
-          className={"new-btn" + (addingOpen ? " active" : "")}
-          title="Add project — pick a folder"
+          className="new-btn"
+          title="Add a random mock project"
           onClick={onAddClick}
-          disabled={picking}
         >
-          {addingOpen ? "×" : "+"}
+          +
         </button>
       </div>
-
-      {addingOpen && <AddProjectForm onDone={() => setAddingOpen(false)} />}
 
       <div className="sidebar-section-title">Projects</div>
       <div className="sidebar-list">
@@ -73,60 +50,30 @@ export function Sidebar() {
   );
 }
 
-function AddProjectForm({ onDone }: { onDone: () => void }) {
-  const addProject = useStore((s) => s.addProject);
-  const [name, setName] = useState("");
-  const [path, setPath] = useState("");
-  const nameRef = useRef<HTMLInputElement>(null);
+const randomOrgs = ["acme", "garden", "neon", "atlas", "polaris", "delta", "kit", "vault"];
+const randomApps = [
+  "payments-svc",
+  "billing-poller",
+  "edge-router",
+  "queue-worker",
+  "auth-shim",
+  "feature-flags",
+  "search-index",
+  "image-pipeline",
+  "secrets-rotator",
+  "webhook-relay",
+];
 
-  useEffect(() => {
-    nameRef.current?.focus();
-  }, []);
-
-  const submit = () => {
-    if (!name.trim()) return;
-    addProject(name, path);
-    onDone();
-  };
-
-  return (
-    <div className="add-proj">
-      <div className="add-proj-title">Add project</div>
-      <input
-        ref={nameRef}
-        type="text"
-        placeholder="acme/payments-svc"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") submit();
-          if (e.key === "Escape") onDone();
-        }}
-      />
-      <input
-        type="text"
-        placeholder="~/work/acme/payments-svc"
-        value={path}
-        onChange={(e) => setPath(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") submit();
-          if (e.key === "Escape") onDone();
-        }}
-      />
-      <div className="add-proj-actions">
-        <button className="btn ghost small" onClick={onDone}>
-          Cancel
-        </button>
-        <button className="btn primary small" onClick={submit} disabled={!name.trim()}>
-          Add → Global Knowledge
-        </button>
-      </div>
-      <div className="add-proj-hint dim">
-        New projects start without <code>.knotic/</code>, so the next step is the Global Knowledge
-        wizard.
-      </div>
-    </div>
-  );
+function randomProjectEntry(taken: string[]): { name: string; path: string } {
+  for (let i = 0; i < 40; i++) {
+    const org = randomOrgs[Math.floor(Math.random() * randomOrgs.length)];
+    const app = randomApps[Math.floor(Math.random() * randomApps.length)];
+    const name = `${org}/${app}`;
+    if (!taken.includes(name)) return { name, path: `~/work/${name}` };
+  }
+  // collisions exhausted — append a short suffix
+  const suffix = Math.random().toString(36).slice(2, 5);
+  return { name: `lab/${suffix}-svc`, path: `~/work/lab/${suffix}-svc` };
 }
 
 function ProjectRow({
