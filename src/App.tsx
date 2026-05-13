@@ -6,6 +6,7 @@ import { SpecReview } from "./components/SpecReview";
 import { Architect } from "./components/Architect";
 import { Review } from "./components/Review";
 import { BranchReview } from "./components/BranchReview";
+import { ProjectSettings } from "./components/ProjectSettings";
 import { Welcome } from "./components/Welcome";
 import { useStore } from "./state/store";
 
@@ -37,6 +38,9 @@ export function App() {
               base={view.base}
             />
           )}
+          {view.kind === "project-settings" && (
+            <ProjectSettings projectId={view.projectId} initialTab={view.tab} />
+          )}
         </div>
       </main>
     </div>
@@ -59,6 +63,7 @@ function TopBar() {
   if (view.kind === "review") crumbs.push("Code review");
   if (view.kind === "review-branch")
     crumbs.push(view.branch ? `Review · ${view.branch}` : "Review branch");
+  if (view.kind === "project-settings") crumbs.push("Settings");
   return (
     <header className="topbar">
       <div className="crumbs">

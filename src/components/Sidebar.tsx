@@ -146,6 +146,10 @@ function ProjectRow({
     setView({ kind: "review-branch", projectId: project.id });
   };
 
+  const openSettings = () => {
+    setView({ kind: "project-settings", projectId: project.id });
+  };
+
   return (
     <div className={"proj " + (isActive ? "active" : "")}>
       <div className="proj-row">
@@ -165,6 +169,16 @@ function ProjectRow({
           {project.name}
         </button>
         <div className="proj-actions" ref={menuRef}>
+          <button
+            className="proj-cog"
+            title="Project settings"
+            onClick={(e) => {
+              e.stopPropagation();
+              openSettings();
+            }}
+          >
+            <CogIcon />
+          </button>
           <button
             className={"proj-add" + (menuOpen ? " open" : "")}
             title="New session"
@@ -277,6 +291,27 @@ function kindLabel(k: SessionKind) {
   if (k === "chat") return "Chat";
   if (k === "brainstorm") return "Brainstorm";
   return "Architect";
+}
+
+function CogIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <circle
+        cx="8"
+        cy="8"
+        r="2.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M8 1.5v2M8 12.5v2M14.5 8h-2M3.5 8h-2M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4M12.6 12.6l-1.4-1.4M4.8 4.8L3.4 3.4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
 export function KindIcon({ kind }: { kind: SessionKind }) {

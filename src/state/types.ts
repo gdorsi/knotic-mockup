@@ -99,4 +99,11 @@ export type View =
   | { kind: "spec"; projectId: string; specSlug: string }
   | { kind: "architect"; projectId: string; specSlug: string }
   | { kind: "review"; projectId: string; specSlug: string }
-  | { kind: "review-branch"; projectId: string; branch?: string; base?: string };
+  | { kind: "review-branch"; projectId: string; branch?: string; base?: string }
+  | { kind: "project-settings"; projectId: string; tab?: ProjectSettingsTab };
+
+export type ProjectSettingsTab =
+  | "context-lens"
+  | "global-knowledge"
+  | "model"
+  | "limits";
