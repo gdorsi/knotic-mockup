@@ -1,0 +1,322 @@
+import { useEffect, useRef, useState } from "react";
+import { useStore } from "../state/store";
+import type { Project, Session, SessionKind } from "../state/types";
+
+export function Sidebar() {
+  const projects = useStore((s) => s.projects);
+  const setView = useStore((s) => s.setView);
+  const view = useStore((s) => s.view);
+  const [addingOpen, setAddingOpen] = useState(false);
+
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-head">
+        <div className="logo">
+          <span className="logo-mark">◇</span>
+          <span className="logo-text">knotic</span>
+        </div>
+        <button
+          className={"new-btn" + (addingOpen ? " active" : "")}
+          title="Add project"
+          onClick={() => setAddingOpen((x) => !x)}
+        >
+          {addingOpen ? "×" : "+"}
+        </button>
+      </div>
+
+      {addingOpen && <AddProjectForm onDone={() => setAddingOpen(false)} />}
+
+      <div className="sidebar-section-title">Projects</div>
+      <div className="sidebar-list">
+        {projects.map((p) => (
+          <ProjectRow key={p.id} project={p} view={view} setView={setView} />
+        ))}
+      </div>
+      <div className="sidebar-foot">
+        <div className="foot-row">
+          <span className="dim">Provider</span>
+          <span>Anthropic · claude-opus-4-7</span>
+        </div>
+        <div className="foot-row">
+          <span className="dim">Harness</span>
+          <span>Pi (pi.dev)</span>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function AddProjectForm({ onDone }: { onDone: () => void }) {
+  const addProject = useStore((s) => s.addProject);
+  const [name, setName] = useState("");
+  const [path, setPath] = useState("");
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
+
+  const submit = () => {
+    if (!name.trim()) return;
+    addProject(name, path);
+    onDone();
+  };
+
+  return (
+    <div className="add-proj">
+      <div className="add-proj-title">Add project</div>
+      <input
+        ref={nameRef}
+        type="text"
+        placeholder="acme/payments-svc"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+          if (e.key === "Escape") onDone();
+        }}
+      />
+      <input
+        type="text"
+        placeholder="~/work/acme/payments-svc"
+        value={path}
+        onChange={(e) => setPath(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+          if (e.key === "Escape") onDone();
+        }}
+      />
+      <div className="add-proj-actions">
+        <button className="btn ghost small" onClick={onDone}>
+          Cancel
+        </button>
+        <button className="btn primary small" onClick={submit} disabled={!name.trim()}>
+          Add → Global Knowledge
+        </button>
+      </div>
+      <div className="add-proj-hint dim">
+        New projects start without <code>.knotic/</code>, so the next step is the Global Knowledge
+        wizard.
+      </div>
+    </div>
+  );
+}
+
+function ProjectRow({
+  project,
+  view,
+  setView,
+}: {
+  project: Project;
+  view: ReturnType<typeof useStore.getState>["view"];
+  setView: (v: ReturnType<typeof useStore.getState>["view"]) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const openProject = useStore((s) => s.openProject);
+  const startSession = useStore((s) => s.startSession);
+  const isActive = "projectId" in view && (view as any).projectId === project.id;
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
+
+  const start = (kind: SessionKind) => {
+    setMenuOpen(false);
+    if (!project.hasKnotic) {
+      setView({ kind: "global-knowledge", projectId: project.id });
+      return;
+    }
+    startSession(project.id, kind);
+  };
+
+  return (
+    <div className={"proj " + (isActive ? "active" : "")}>
+      <div className="proj-row">
+        <button
+          className="proj-toggle"
+          onClick={() => setOpen((x) => !x)}
+          aria-label="toggle"
+        >
+          {open ? "▾" : "▸"}
+        </button>
+        <button
+          className="proj-name"
+          onClick={() => openProject(project.id)}
+          title={project.path}
+        >
+          <span className="proj-icon">{project.hasKnotic ? "●" : "○"}</span>
+          {project.name}
+        </button>
+        <div className="proj-actions" ref={menuRef}>
+          <button
+            className={"proj-add" + (menuOpen ? " open" : "")}
+            title="New session"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((x) => !x);
+            }}
+          >
+            +
+          </button>
+          {menuOpen && (
+            <div className="proj-menu" role="menu">
+              <button
+                className="proj-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  start("chat");
+                }}
+              >
+                <KindIcon kind="chat" />
+                <div className="proj-menu-text">
+                  <span className="proj-menu-title">New chat</span>
+                  <span className="proj-menu-sub">interactive session</span>
+                </div>
+              </button>
+              <button
+                className="proj-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  start("brainstorm");
+                }}
+              >
+                <KindIcon kind="brainstorm" />
+                <div className="proj-menu-text">
+                  <span className="proj-menu-title">New brainstorm</span>
+                  <span className="proj-menu-sub">explore options → spec</span>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      {open && (
+        <ul className="sess-list">
+          {project.sessions.length === 0 && (
+            <li className="sess-empty">no sessions yet</li>
+          )}
+          {project.sessions.map((s) => (
+            <SessionRow key={s.id} project={project} session={s} view={view} setView={setView} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function SessionRow({
+  project,
+  session,
+  view,
+  setView,
+}: {
+  project: Project;
+  session: Session;
+  view: ReturnType<typeof useStore.getState>["view"];
+  setView: (v: ReturnType<typeof useStore.getState>["view"]) => void;
+}) {
+  const active =
+    "sessionId" in view && (view as any).sessionId === session.id;
+  return (
+    <li
+      className={"sess " + (active ? "active" : "")}
+      onClick={() => {
+        if (session.kind === "chat")
+          setView({ kind: "chat", projectId: project.id, sessionId: session.id });
+        else if (session.kind === "brainstorm")
+          setView({ kind: "brainstorm", projectId: project.id, sessionId: session.id });
+        else setView({ kind: "architect", projectId: project.id, specSlug: "demo" });
+      }}
+    >
+      <span
+        className={"sess-kind k-" + session.kind}
+        title={kindLabel(session.kind)}
+        aria-label={kindLabel(session.kind)}
+      >
+        <KindIcon kind={session.kind} />
+      </span>
+      <span className="sess-title">{session.title}</span>
+      <span className="sess-time">{relTime(session.updatedAt)}</span>
+    </li>
+  );
+}
+
+function kindLabel(k: SessionKind) {
+  if (k === "chat") return "Chat";
+  if (k === "brainstorm") return "Brainstorm";
+  return "Architect";
+}
+
+export function KindIcon({ kind }: { kind: SessionKind }) {
+  if (kind === "chat") {
+    return (
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+        <path
+          d="M3 3.5A1.5 1.5 0 0 1 4.5 2h7A1.5 1.5 0 0 1 13 3.5V9a1.5 1.5 0 0 1-1.5 1.5H7L4 13v-2.5h-.5A1.5 1.5 0 0 1 2 9.0V3.5C2 3.5 2.67 3.5 3 3.5Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+  if (kind === "brainstorm") {
+    return (
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+        <path
+          d="M8 1.5a4.5 4.5 0 0 0-3 7.85V11h6V9.35A4.5 4.5 0 0 0 8 1.5Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M5.75 12.5h4.5M6.5 14.25h3"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <rect
+        x="2.2"
+        y="2.2"
+        width="11.6"
+        height="11.6"
+        rx="1.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M5 5.6h4M5 8h6M5 10.4h3"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function relTime(t: number): string {
+  const diff = Date.now() - t;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "now";
+  if (m < 60) return m + "m";
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + "h";
+  return Math.floor(h / 24) + "d";
+}
