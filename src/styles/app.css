@@ -297,10 +297,13 @@ code {
   justify-content: center;
   padding: 0;
 }
+.proj-cog {
+  background: transparent;
+  border: none;
+}
 .proj-cog:hover {
   background: var(--bg-4);
   color: var(--accent);
-  border-color: var(--border-2);
 }
 .proj-add:hover,
 .proj-add.open {

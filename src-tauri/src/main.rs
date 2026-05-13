@@ -19,6 +19,7 @@ fn create_knotic_dir(path: String, knowledge: String) -> Result<String, String> 
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![project_has_knotic, create_knotic_dir])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

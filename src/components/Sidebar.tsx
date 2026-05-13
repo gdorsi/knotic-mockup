@@ -2,12 +2,37 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "../state/store";
 import type { Project, Session, SessionKind } from "../state/types";
 import { BranchIcon } from "./BranchReview";
+import { pickDirectory } from "../pi/picker";
 
 export function Sidebar() {
   const projects = useStore((s) => s.projects);
   const setView = useStore((s) => s.setView);
   const view = useStore((s) => s.view);
+  const addProject = useStore((s) => s.addProject);
   const [addingOpen, setAddingOpen] = useState(false);
+  const [picking, setPicking] = useState(false);
+
+  const onAddClick = async () => {
+    if (addingOpen) {
+      setAddingOpen(false);
+      return;
+    }
+    setPicking(true);
+    try {
+      const res = await pickDirectory();
+      if (res.mode === "ok") {
+        addProject(res.name, res.path);
+        return;
+      }
+      if (res.mode === "none") {
+        // No native picker — fall back to inline form
+        setAddingOpen(true);
+      }
+      // mode === "cancelled" → do nothing
+    } finally {
+      setPicking(false);
+    }
+  };
 
   return (
     <aside className="sidebar">
@@ -18,8 +43,9 @@ export function Sidebar() {
         </div>
         <button
           className={"new-btn" + (addingOpen ? " active" : "")}
-          title="Add project"
-          onClick={() => setAddingOpen((x) => !x)}
+          title="Add project — pick a folder"
+          onClick={onAddClick}
+          disabled={picking}
         >
           {addingOpen ? "×" : "+"}
         </button>
