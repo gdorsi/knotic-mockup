@@ -14,6 +14,14 @@ export function Architect({ projectId, specSlug }: { projectId: string; specSlug
     ensure(specSlug);
   }, [specSlug, ensure]);
 
+  // The plan never stops — start it as soon as we land on this view and it
+  // hasn't been started yet. The store has its own lock against double-runs.
+  useEffect(() => {
+    if (!plan) return;
+    const idle = plan.steps.every((s) => s.status === "pending");
+    if (idle) run(specSlug);
+  }, [plan, specSlug, run]);
+
   if (!plan || !project) return null;
 
   const done = plan.steps.filter((s) => s.status === "completed").length;
@@ -33,22 +41,12 @@ export function Architect({ projectId, specSlug }: { projectId: string; specSlug
         <div className="arc-controls">
           {running && <span className="arc-pill running">running</span>}
           {finished && !running && <span className="arc-pill done">complete</span>}
-          {finished && review ? (
+          {finished && review && (
             <button
               className="btn primary"
-              onClick={() =>
-                setView({ kind: "review", projectId, specSlug })
-              }
+              onClick={() => setView({ kind: "review", projectId, specSlug })}
             >
               Open code review →
-            </button>
-          ) : (
-            <button
-              className="btn primary"
-              onClick={() => run(specSlug)}
-              disabled={running}
-            >
-              {done === 0 ? "Run plan ▶" : "Run remaining ▶"}
             </button>
           )}
         </div>

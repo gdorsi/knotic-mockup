@@ -346,6 +346,9 @@ export const useStore = create<State>((set, get) => ({
   },
 
   async runArchitect(specSlug) {
+    if (archRunLock.has(specSlug)) return;
+    archRunLock.add(specSlug);
+    try {
     const plan = get().architect[specSlug];
     if (!plan) return;
     const session = await MockPi.createSession({ kind: "architect" });
@@ -384,6 +387,9 @@ export const useStore = create<State>((set, get) => ({
     if (projId) {
       set({ view: { kind: "review", projectId: projId, specSlug } });
     }
+    } finally {
+      archRunLock.delete(specSlug);
+    }
   },
 
   ensureReview(specSlug) {
@@ -414,6 +420,10 @@ export const useStore = create<State>((set, get) => ({
     }
   },
 }));
+
+// Module-level guard so concurrent calls (e.g. StrictMode double-mount) don't
+// each kick off their own walk through the steps.
+const archRunLock = new Set<string>();
 
 function defaultTitle(kind: SessionKind): string {
   if (kind === "chat") return "New chat";

@@ -96,7 +96,7 @@ export const MockPi: PiClient = {
             { kind: "step", id: "s2", title: "Wire entry points", status: "running" },
             { kind: "step", id: "s2", title: "Wire entry points", status: "completed", detail: "Updated 2 imports" },
             { kind: "step", id: "s3", title: "Write tests", status: "running" },
-            { kind: "step", id: "s3", title: "Write tests", status: "paused", detail: "Awaiting fixture data" },
+            { kind: "step", id: "s3", title: "Write tests", status: "completed", detail: "Added test/queue.spec.ts" },
             { kind: "done" },
           ],
           cancelled,
