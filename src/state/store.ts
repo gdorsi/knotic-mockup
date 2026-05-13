@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { nanoid } from "nanoid";
-import { seedProjects, seedBrainstormCards, refinementBase, refinementFollowups } from "../data/seed";
+import {
+  seedProjects,
+  seedBrainstormCards,
+  refinementBase,
+  refinementFollowups,
+  seedReviewChapters,
+} from "../data/seed";
 import type {
   Project,
   Session,
@@ -12,6 +18,7 @@ import type {
   SpecDraft,
   ArchitectPlan,
   ArchitectStep,
+  ReviewChapter,
 } from "./types";
 import { MockPi } from "../pi/harness";
 
@@ -33,6 +40,7 @@ interface State {
   activeProjectId?: string;
   brainstorm: Record<string, BrainstormState>; // keyed by sessionId
   architect: Record<string, ArchitectPlan>;     // keyed by specSlug
+  review: Record<string, ReviewChapter[]>;      // keyed by specSlug
   chatLog: Record<string, { role: "user" | "agent"; text: string }[]>; // sessionId
   // actions
   setView(v: View): void;
@@ -55,6 +63,8 @@ interface State {
   // architect
   ensureArchitectPlan(specSlug: string): ArchitectPlan;
   runArchitect(specSlug: string): Promise<void>;
+  // review
+  ensureReview(specSlug: string): ReviewChapter[];
   // chat
   sendChat(sessionId: string, text: string): Promise<void>;
 }
@@ -64,6 +74,7 @@ export const useStore = create<State>((set, get) => ({
   view: { kind: "welcome" },
   brainstorm: {},
   architect: {},
+  review: {},
   chatLog: {},
 
   setView(v) {
@@ -338,31 +349,49 @@ export const useStore = create<State>((set, get) => ({
     const plan = get().architect[specSlug];
     if (!plan) return;
     const session = await MockPi.createSession({ kind: "architect" });
-    // walk through steps marking running -> completed with a fake log
+    // Run every step to completion. Operator concerns surface as warnings in
+    // the step log and as review feedback later, never as a hard pause —
+    // the plan does not stop until it reaches code review.
     for (const step of plan.steps) {
+      // skip steps that already completed (e.g. resume after partial run)
+      if (step.status === "completed" || step.status === "skipped") continue;
       updateStep(set, get, specSlug, step.id, (s) => ({
         ...s,
         status: "running",
         log: [...(s.log ?? []), `[${ts()}] starting ${s.title}`],
       }));
-      await new Promise((r) => setTimeout(r, 700));
-      // randomly pause one step for realism
-      const shouldPause = step.id === "a5";
+      await new Promise((r) => setTimeout(r, 600));
+      const warn = step.id === "a5";
       updateStep(set, get, specSlug, step.id, (s) => ({
         ...s,
-        status: shouldPause ? "paused" : "completed",
-        detail: shouldPause ? "Waiting on operator: confirm idempotency contract" : "ok",
+        status: "completed",
+        detail: warn ? "ok · flagged for review (idempotency contract)" : "ok",
         log: [
           ...(s.log ?? []),
-          `[${ts()}] ${shouldPause ? "paused" : "completed"} ${s.title}`,
+          warn
+            ? `[${ts()}] note: idempotency contract needs human review — deferred to code review`
+            : `[${ts()}] completed ${s.title}`,
         ],
       }));
-      if (shouldPause) break;
     }
     // consume the mock pi stream (purely decorative)
     for await (const _ev of session.stream("execute plan", { spec: specSlug })) {
       // no-op
     }
+    // Plan complete → hand off to code review automatically.
+    get().ensureReview(specSlug);
+    const projId = get().activeProjectId;
+    if (projId) {
+      set({ view: { kind: "review", projectId: projId, specSlug } });
+    }
+  },
+
+  ensureReview(specSlug) {
+    const existing = get().review[specSlug];
+    if (existing) return existing;
+    const chapters = seedReviewChapters(specSlug);
+    set((st) => ({ review: { ...st.review, [specSlug]: chapters } }));
+    return chapters;
   },
 
   async sendChat(sessionId, text) {

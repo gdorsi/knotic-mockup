@@ -12,10 +12,11 @@
     "tauri:build": "tauri build"
   },
   "dependencies": {
+    "@pierre/diffs": "^1.1.22",
+    "nanoid": "^5.0.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "zustand": "^4.5.5",
-    "nanoid": "^5.0.7"
+    "zustand": "^4.5.5"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.1.0",

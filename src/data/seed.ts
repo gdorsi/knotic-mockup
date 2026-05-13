@@ -1,4 +1,4 @@
-import type { Project, BrainstormCard, RefinementQA } from "../state/types";
+import type { Project, BrainstormCard, RefinementQA, ReviewChapter } from "../state/types";
 
 export const seedProjects: Project[] = [
   {
@@ -133,6 +133,244 @@ export const refinementBase: Record<string, Q[]> = {
     },
   ],
 };
+
+// Stable mock unified diffs + AI review feedback used by the code-review phase.
+export function seedReviewChapters(specSlug: string): ReviewChapter[] {
+  return [
+    {
+      id: "ch1",
+      title: "Queue abstraction",
+      summary:
+        "Introduces a small Queue interface with enqueue / dequeue / ack so the rest of the codebase doesn't depend on a specific backend.",
+      files: ["src/queue/index.ts"],
+      patch: `diff --git a/src/queue/index.ts b/src/queue/index.ts
+new file mode 100644
+--- /dev/null
++++ b/src/queue/index.ts
+@@ -0,0 +1,28 @@
++export type JobId = string;
++
++export interface Job<T> {
++  id: JobId;
++  payload: T;
++  attempts: number;
++}
++
++export interface Queue<T> {
++  enqueue(payload: T): Promise<JobId>;
++  dequeue(): Promise<Job<T> | null>;
++  ack(id: JobId): Promise<void>;
++  nack(id: JobId, opts?: { requeue?: boolean }): Promise<void>;
++}
++
++export function createQueue<T>(backend: Queue<T>): Queue<T> {
++  return backend;
++}
+`,
+      feedback: [
+        {
+          id: "f1",
+          severity: "suggestion",
+          title: "Consider a generic visibility-timeout option",
+          body:
+            "enqueue() takes only a payload. Many backends (SQS, BullMQ) accept a per-message visibility / delay. Adding an `EnqueueOpts` argument now is cheaper than adding it later, and the Redis adapter in chapter 2 already needs it.",
+          ref: "src/queue/index.ts:14",
+        },
+        {
+          id: "f2",
+          severity: "nit",
+          title: "JobId could be a branded type",
+          body:
+            "Using a plain string is fine, but a `type JobId = string & { readonly __brand: 'JobId' }` makes mixing ids with other strings a compile error. Cheap insurance.",
+        },
+      ],
+    },
+    {
+      id: "ch2",
+      title: "Redis adapter",
+      summary:
+        "Wires a BullMQ-backed implementation of the Queue interface. Retry policy is configurable, dead-letter is opt-in.",
+      files: ["src/queue/redis.ts"],
+      patch: `diff --git a/src/queue/redis.ts b/src/queue/redis.ts
+new file mode 100644
+--- /dev/null
++++ b/src/queue/redis.ts
+@@ -0,0 +1,40 @@
++import { Queue as BullQueue, Worker } from "bullmq";
++import type { Queue, Job, JobId } from "./index";
++
++export interface RedisQueueOpts {
++  name: string;
++  connection: { host: string; port: number };
++  retries?: number;
++}
++
++export function redisQueue<T>(opts: RedisQueueOpts): Queue<T> {
++  const q = new BullQueue<T>(opts.name, { connection: opts.connection });
++
++  return {
++    async enqueue(payload) {
++      const job = await q.add("job", payload, {
++        attempts: opts.retries ?? 5,
++        backoff: { type: "exponential", delay: 1000 },
++      });
++      return job.id!;
++    },
++    async dequeue() {
++      // BullMQ pulls via Worker, not by polling — see Worker setup below.
++      return null;
++    },
++    async ack(id) {
++      const job = await q.getJob(id);
++      await job?.remove();
++    },
++    async nack(id, opts) {
++      const job = await q.getJob(id);
++      if (opts?.requeue) await job?.retry();
++    },
++  };
++}
+`,
+      feedback: [
+        {
+          id: "f3",
+          severity: "concern",
+          title: "dequeue() always returns null",
+          body:
+            "The interface implies a pull model, but the implementation comments that BullMQ uses a Worker. Either change Queue<T> to expose subscribe/onJob, or actually implement a polling dequeue. The current shape will silently no-op for any consumer of the interface.",
+          ref: "src/queue/redis.ts:22",
+        },
+        {
+          id: "f4",
+          severity: "blocker",
+          title: "No connection error handling",
+          body:
+            "If BullMQ can't reach Redis, the constructor throws synchronously on first use and the enqueue path crashes the producer. Wrap construction + first enqueue in a guarded path that surfaces a typed error to the caller, or the rollout will look like an API outage.",
+          ref: "src/queue/redis.ts:10",
+        },
+        {
+          id: "f5",
+          severity: "praise",
+          title: "Good defaults",
+          body:
+            "5 attempts + exponential backoff is the right starting policy. Matches the answer captured during refinement and avoids surprising operators.",
+        },
+      ],
+    },
+    {
+      id: "ch3",
+      title: "Producer migration",
+      summary:
+        "Switches the webhook handler from inline processing to enqueueing onto the new queue.",
+      files: ["src/billing/webhook.ts"],
+      patch: `diff --git a/src/billing/webhook.ts b/src/billing/webhook.ts
+--- a/src/billing/webhook.ts
++++ b/src/billing/webhook.ts
+@@ -1,12 +1,15 @@
+-import { processWebhook } from "./process";
++import { redisQueue } from "../queue/redis";
++
++const jobs = redisQueue<{ event: string; body: unknown }>({
++  name: "billing-webhook",
++  connection: { host: "redis", port: 6379 },
++});
+
+ export async function handleWebhook(req: Request, res: Response) {
+   const event = req.headers["x-event"];
+   const body = await req.json();
+
+-  // Inline processing — slow under bursty traffic.
+-  await processWebhook(event, body);
+-
+-  res.status(200).send("ok");
++  // Acknowledge immediately, do the work off-thread.
++  await jobs.enqueue({ event, body });
++  res.status(202).send("queued");
+ }
+`,
+      feedback: [
+        {
+          id: "f6",
+          severity: "concern",
+          title: "Status code change is a contract break",
+          body:
+            "Stripe and Adyen both retry on non-2xx. 202 is fine for them, but anything internal that checks for exactly 200 will break. Grep for callers before merging.",
+          ref: "src/billing/webhook.ts:14",
+        },
+        {
+          id: "f7",
+          severity: "suggestion",
+          title: "Hard-coded Redis host",
+          body:
+            "host: \"redis\" works in docker-compose but not in prod. Move to config and validate at startup.",
+          ref: "src/billing/webhook.ts:5",
+        },
+      ],
+    },
+    {
+      id: "ch4",
+      title: "Integration tests",
+      summary: "Covers the happy path and a retry-then-succeed scenario against an in-memory backend.",
+      files: ["test/queue.spec.ts"],
+      patch: `diff --git a/test/queue.spec.ts b/test/queue.spec.ts
+new file mode 100644
+--- /dev/null
++++ b/test/queue.spec.ts
+@@ -0,0 +1,32 @@
++import { describe, expect, it } from "vitest";
++import { createQueue, type Queue } from "../src/queue";
++
++function memoryQueue<T>(): Queue<T> {
++  const buf: { id: string; payload: T }[] = [];
++  let n = 0;
++  return {
++    async enqueue(payload) {
++      const id = String(++n);
++      buf.push({ id, payload });
++      return id;
++    },
++    async dequeue() {
++      const m = buf.shift();
++      return m ? { id: m.id, payload: m.payload, attempts: 1 } : null;
++    },
++    async ack() {},
++    async nack(id, opts) {
++      if (opts?.requeue) buf.unshift({ id, payload: null as any });
++    },
++  };
++}
++
++describe("queue", () => {
++  it("delivers in order", async () => {
++    const q = createQueue(memoryQueue<number>());
++    await q.enqueue(1);
++    await q.enqueue(2);
++    expect((await q.dequeue())?.payload).toBe(1);
++    expect((await q.dequeue())?.payload).toBe(2);
++  });
++});
+`,
+      feedback: [
+        {
+          id: "f8",
+          severity: "concern",
+          title: "Missing failure-mode test",
+          body:
+            "Spec acceptance criteria say \"Tests cover the happy path and at least one failure mode per step.\" There's no test exercising nack + retry. Add one before approving.",
+          ref: "test/queue.spec.ts:30",
+        },
+        {
+          id: "f9",
+          severity: "nit",
+          title: "payload: null as any",
+          body:
+            "The memory queue's nack-requeue path re-enqueues with `null as any`. Harmless in this test, but it would be a real bug if reused. A short comment would prevent the copy-paste.",
+          ref: "test/queue.spec.ts:19",
+        },
+      ],
+    },
+  ];
+}
 
 // Mock "follow-up" questions surfaced after the first answer in each card. Demonstrates
 // that more questions can appear mid-flow before reaching the summary.

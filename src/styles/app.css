@@ -1099,6 +1099,27 @@ textarea:focus {
   color: var(--warn);
   border-color: rgba(251, 191, 36, 0.45);
 }
+.arc-pill.done {
+  color: var(--good);
+  border-color: rgba(74, 222, 128, 0.45);
+}
+.arc-handoff {
+  margin-top: 22px;
+  background: linear-gradient(180deg, rgba(140, 121, 255, 0.08), transparent 80%),
+    var(--bg-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-lg);
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  line-height: 1.45;
+  color: var(--fg);
+}
+.arc-handoff strong {
+  color: var(--accent);
+}
 
 .arc-list {
   list-style: none;
@@ -1248,4 +1269,275 @@ textarea:focus {
   text-align: center;
   color: var(--fg-3);
   padding: 60px;
+}
+
+/* ---------- review (per-chapter AI feedback) ---------- */
+.rev-wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.rev-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.rev-head h2 {
+  margin: 4px 0;
+}
+.rev-summary {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.rev-sev-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-family: var(--mono);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--fg-2);
+}
+.rev-sev-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fg-3);
+}
+.rev-sev-count {
+  color: var(--fg);
+  font-weight: 600;
+}
+.rev-sev-label {
+  color: var(--fg-3);
+}
+.rev-sev-pill.sev-blocker {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.08);
+}
+.rev-sev-pill.sev-blocker .rev-sev-dot {
+  background: var(--bad);
+}
+.rev-sev-pill.sev-concern {
+  border-color: rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.08);
+}
+.rev-sev-pill.sev-concern .rev-sev-dot {
+  background: var(--warn);
+}
+.rev-sev-pill.sev-suggestion {
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(96, 165, 250, 0.08);
+}
+.rev-sev-pill.sev-suggestion .rev-sev-dot {
+  background: var(--info);
+}
+.rev-sev-pill.sev-nit .rev-sev-dot {
+  background: var(--fg-2);
+}
+.rev-sev-pill.sev-praise {
+  border-color: rgba(74, 222, 128, 0.45);
+  background: rgba(74, 222, 128, 0.06);
+}
+.rev-sev-pill.sev-praise .rev-sev-dot {
+  background: var(--good);
+}
+
+.rev-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.rev-chapter {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.rev-chapter-head {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--fg);
+  display: grid;
+  grid-template-columns: 28px 1fr auto auto 22px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13.5px;
+}
+.rev-chapter-head:hover {
+  background: var(--bg-3);
+}
+.rev-chapter-i {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--fg-3);
+}
+.rev-chapter-title {
+  font-weight: 600;
+}
+.rev-chapter-files {
+  display: flex;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.rev-chapter-counts {
+  display: flex;
+  gap: 4px;
+}
+.rev-mini-pill {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  color: var(--fg-2);
+}
+.rev-mini-pill.sev-blocker {
+  color: var(--bad);
+  border-color: rgba(248, 113, 113, 0.5);
+}
+.rev-mini-pill.sev-concern {
+  color: var(--warn);
+  border-color: rgba(251, 191, 36, 0.5);
+}
+.rev-mini-pill.sev-suggestion {
+  color: var(--info);
+  border-color: rgba(96, 165, 250, 0.5);
+}
+.rev-mini-pill.sev-praise {
+  color: var(--good);
+  border-color: rgba(74, 222, 128, 0.45);
+}
+.rev-chapter-toggle {
+  color: var(--fg-3);
+  text-align: center;
+}
+
+.rev-chapter-body {
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+.rev-chapter-summary {
+  margin: 0;
+  color: var(--fg-2);
+  line-height: 1.55;
+}
+.rev-diff {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-2);
+}
+.rev-diff pre,
+.rev-diff code {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.rev-feedback {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.rev-feedback-head {
+  margin-bottom: 8px;
+  font-size: 11.5px;
+}
+.rev-feedback ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.rev-fb {
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--bg-3);
+}
+.rev-fb.sev-blocker {
+  border-left-color: var(--bad);
+}
+.rev-fb.sev-concern {
+  border-left-color: var(--warn);
+}
+.rev-fb.sev-suggestion {
+  border-left-color: var(--info);
+}
+.rev-fb.sev-nit {
+  border-left-color: var(--fg-2);
+}
+.rev-fb.sev-praise {
+  border-left-color: var(--good);
+}
+.rev-fb-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rev-fb-sev {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--bg-4);
+  color: var(--fg-2);
+}
+.rev-fb-sev.sev-blocker {
+  color: var(--bad);
+  background: rgba(248, 113, 113, 0.12);
+}
+.rev-fb-sev.sev-concern {
+  color: var(--warn);
+  background: rgba(251, 191, 36, 0.12);
+}
+.rev-fb-sev.sev-suggestion {
+  color: var(--info);
+  background: rgba(96, 165, 250, 0.12);
+}
+.rev-fb-sev.sev-praise {
+  color: var(--good);
+  background: rgba(74, 222, 128, 0.12);
+}
+.rev-fb-title {
+  font-weight: 600;
+  color: var(--fg);
+}
+.rev-fb-ref {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.rev-fb-body {
+  margin-top: 6px;
+  color: var(--fg-2);
+  line-height: 1.55;
+  font-size: 13px;
+}
+.rev-fb-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
 }

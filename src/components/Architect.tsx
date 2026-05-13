@@ -7,6 +7,8 @@ export function Architect({ projectId, specSlug }: { projectId: string; specSlug
   const plan = useStore((s) => s.architect[specSlug]);
   const run = useStore((s) => s.runArchitect);
   const project = useStore((s) => s.projects.find((p) => p.id === projectId));
+  const setView = useStore((s) => s.setView);
+  const review = useStore((s) => s.review[specSlug]);
 
   useEffect(() => {
     ensure(specSlug);
@@ -16,7 +18,7 @@ export function Architect({ projectId, specSlug }: { projectId: string; specSlug
 
   const done = plan.steps.filter((s) => s.status === "completed").length;
   const running = plan.steps.some((s) => s.status === "running");
-  const paused = plan.steps.some((s) => s.status === "paused");
+  const finished = done === plan.steps.length;
 
   return (
     <div className="arc-wrap">
@@ -29,15 +31,26 @@ export function Architect({ projectId, specSlug }: { projectId: string; specSlug
           </div>
         </div>
         <div className="arc-controls">
-          {paused && <span className="arc-pill paused">paused</span>}
           {running && <span className="arc-pill running">running</span>}
-          <button
-            className="btn primary"
-            onClick={() => run(specSlug)}
-            disabled={running}
-          >
-            {done === 0 ? "Run plan ▶" : paused ? "Resume ▶" : "Run remaining ▶"}
-          </button>
+          {finished && !running && <span className="arc-pill done">complete</span>}
+          {finished && review ? (
+            <button
+              className="btn primary"
+              onClick={() =>
+                setView({ kind: "review", projectId, specSlug })
+              }
+            >
+              Open code review →
+            </button>
+          ) : (
+            <button
+              className="btn primary"
+              onClick={() => run(specSlug)}
+              disabled={running}
+            >
+              {done === 0 ? "Run plan ▶" : "Run remaining ▶"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -46,6 +59,21 @@ export function Architect({ projectId, specSlug }: { projectId: string; specSlug
           <StepRow key={step.id} step={step} index={i + 1} />
         ))}
       </ol>
+
+      {finished && (
+        <div className="arc-handoff">
+          <div>
+            <strong>Plan complete.</strong> Knotic generated a structured code review with
+            per-chapter AI feedback (powered by <code>@pierre/diffs</code>).
+          </div>
+          <button
+            className="btn primary"
+            onClick={() => setView({ kind: "review", projectId, specSlug })}
+          >
+            Review changes →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

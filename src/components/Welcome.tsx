@@ -22,7 +22,11 @@ export function Welcome() {
           </li>
           <li>
             <b>4.</b> Architect runs the plan as a collapsible task list — each step opens its own
-            session, log, and diff.
+            session, log, and diff. The plan never pauses.
+          </li>
+          <li>
+            <b>5.</b> When the plan finishes, Knotic generates a structured <i>code review</i> with
+            per-chapter AI feedback (rendered via <code>@pierre/diffs</code>).
           </li>
         </ol>
         <p className="hint">Pick a project on the left to start.</p>

@@ -70,10 +70,32 @@ export interface ArchitectPlan {
   steps: ArchitectStep[];
 }
 
+export type ReviewSeverity = "blocker" | "concern" | "suggestion" | "nit" | "praise";
+
+export interface ReviewFeedback {
+  id: string;
+  severity: ReviewSeverity;
+  title: string;
+  body: string;
+  /** optional file:line reference inside the chapter */
+  ref?: string;
+}
+
+export interface ReviewChapter {
+  id: string;
+  title: string;
+  summary: string;
+  files: string[];
+  /** unified-diff string, rendered with @pierre/diffs PatchDiff */
+  patch: string;
+  feedback: ReviewFeedback[];
+}
+
 export type View =
   | { kind: "welcome" }
   | { kind: "global-knowledge"; projectId: string }
   | { kind: "chat"; projectId: string; sessionId?: string }
   | { kind: "brainstorm"; projectId: string; sessionId?: string }
   | { kind: "spec"; projectId: string; specSlug: string }
-  | { kind: "architect"; projectId: string; specSlug: string };
+  | { kind: "architect"; projectId: string; specSlug: string }
+  | { kind: "review"; projectId: string; specSlug: string };
