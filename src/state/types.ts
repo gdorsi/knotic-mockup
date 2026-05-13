@@ -98,4 +98,5 @@ export type View =
   | { kind: "brainstorm"; projectId: string; sessionId?: string }
   | { kind: "spec"; projectId: string; specSlug: string }
   | { kind: "architect"; projectId: string; specSlug: string }
-  | { kind: "review"; projectId: string; specSlug: string };
+  | { kind: "review"; projectId: string; specSlug: string }
+  | { kind: "review-branch"; projectId: string; branch?: string; base?: string };

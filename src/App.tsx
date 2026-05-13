@@ -5,6 +5,7 @@ import { Brainstorm } from "./components/Brainstorm";
 import { SpecReview } from "./components/SpecReview";
 import { Architect } from "./components/Architect";
 import { Review } from "./components/Review";
+import { BranchReview } from "./components/BranchReview";
 import { Welcome } from "./components/Welcome";
 import { useStore } from "./state/store";
 
@@ -29,6 +30,13 @@ export function App() {
           {view.kind === "review" && (
             <Review projectId={view.projectId} specSlug={view.specSlug} />
           )}
+          {view.kind === "review-branch" && (
+            <BranchReview
+              projectId={view.projectId}
+              branch={view.branch}
+              base={view.base}
+            />
+          )}
         </div>
       </main>
     </div>
@@ -49,6 +57,8 @@ function TopBar() {
   if (view.kind === "spec") crumbs.push("Spec");
   if (view.kind === "architect") crumbs.push("Architect");
   if (view.kind === "review") crumbs.push("Code review");
+  if (view.kind === "review-branch")
+    crumbs.push(view.branch ? `Review · ${view.branch}` : "Review branch");
   return (
     <header className="topbar">
       <div className="crumbs">

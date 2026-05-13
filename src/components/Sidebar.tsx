@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "../state/store";
 import type { Project, Session, SessionKind } from "../state/types";
+import { BranchIcon } from "./BranchReview";
 
 export function Sidebar() {
   const projects = useStore((s) => s.projects);
@@ -136,6 +137,15 @@ function ProjectRow({
     startSession(project.id, kind);
   };
 
+  const startBranchReview = () => {
+    setMenuOpen(false);
+    if (!project.hasKnotic) {
+      setView({ kind: "global-knowledge", projectId: project.id });
+      return;
+    }
+    setView({ kind: "review-branch", projectId: project.id });
+  };
+
   return (
     <div className={"proj " + (isActive ? "active" : "")}>
       <div className="proj-row">
@@ -193,6 +203,19 @@ function ProjectRow({
                 <div className="proj-menu-text">
                   <span className="proj-menu-title">New brainstorm</span>
                   <span className="proj-menu-sub">explore options → spec</span>
+                </div>
+              </button>
+              <button
+                className="proj-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startBranchReview();
+                }}
+              >
+                <BranchIcon />
+                <div className="proj-menu-text">
+                  <span className="proj-menu-title">Review branch</span>
+                  <span className="proj-menu-sub">AI review on a branch diff</span>
                 </div>
               </button>
             </div>

@@ -134,6 +134,125 @@ export const refinementBase: Record<string, Q[]> = {
   ],
 };
 
+// Mock chapters used by the standalone "Review branch" view. The actual diff
+// content does not depend on the branch name, but the chapter framing is
+// flavored a little to feel branch-specific (renames, focused fixes).
+export function seedBranchReviewChapters(branch: string, base: string): ReviewChapter[] {
+  const _ = base; // mock; would normally drive the actual diff
+  return [
+    {
+      id: "br1",
+      title: `Rate limiter — fix sliding-window edge case`,
+      summary: `${branch} fixes an off-by-one in the sliding window that let one extra request through at the window boundary.`,
+      files: ["src/middleware/rate-limit.ts"],
+      patch: `diff --git a/src/middleware/rate-limit.ts b/src/middleware/rate-limit.ts
+--- a/src/middleware/rate-limit.ts
++++ b/src/middleware/rate-limit.ts
+@@ -18,9 +18,9 @@ export function rateLimit(opts: RateLimitOpts) {
+     const now = Date.now();
+     const windowStart = now - opts.windowMs;
+     const hits = store.get(key) ?? [];
+-    const recent = hits.filter((t) => t > windowStart);
++    const recent = hits.filter((t) => t >= windowStart);
+-    if (recent.length >= opts.max) {
++    if (recent.length > opts.max - 1) {
+       return res.status(429).send("rate limited");
+     }
+     recent.push(now);
+`,
+      feedback: [
+        {
+          id: "brf1",
+          severity: "concern",
+          title: "Inclusive boundary is correct, but the comparison rewrite is noise",
+          body:
+            "`recent.length > opts.max - 1` is equivalent to `recent.length >= opts.max`. The original form reads better; revert to it and keep just the `>= windowStart` change so the diff is exactly the fix.",
+          ref: "src/middleware/rate-limit.ts:22",
+        },
+        {
+          id: "brf2",
+          severity: "suggestion",
+          title: "Add a regression test",
+          body:
+            "The original bug only fires at the exact window boundary, which is easy to silently re-introduce. A test that submits requests at `windowMs` and `windowMs + 1` ms apart would lock this in.",
+        },
+      ],
+    },
+    {
+      id: "br2",
+      title: "Auth — accept x-api-key alongside Authorization",
+      summary: "Allow callers to authenticate with `x-api-key` for compatibility with internal scripts.",
+      files: ["src/auth/extract.ts"],
+      patch: `diff --git a/src/auth/extract.ts b/src/auth/extract.ts
+--- a/src/auth/extract.ts
++++ b/src/auth/extract.ts
+@@ -1,8 +1,16 @@
+ export function extractToken(req: Request): string | null {
+   const h = req.headers.get("authorization");
+-  if (!h) return null;
+-  const [scheme, token] = h.split(" ");
+-  if (scheme.toLowerCase() !== "bearer") return null;
+-  return token ?? null;
++  if (h) {
++    const [scheme, token] = h.split(" ");
++    if (scheme.toLowerCase() === "bearer" && token) return token;
++  }
++
++  // Internal scripts use a static key header.
++  const apiKey = req.headers.get("x-api-key");
++  if (apiKey) return apiKey;
++
++  return null;
+ }
+`,
+      feedback: [
+        {
+          id: "brf3",
+          severity: "blocker",
+          title: "x-api-key bypasses Bearer-token expiry checks downstream",
+          body:
+            "Callers using `x-api-key` flow into the same `extractToken` consumer, which then runs JWT verification. Static API keys are not JWTs and the verifier will reject them — every internal script will start getting 401s. Either branch downstream on the credential type or keep API-key handling on a separate middleware.",
+          ref: "src/auth/extract.ts:10",
+        },
+        {
+          id: "brf4",
+          severity: "praise",
+          title: "Nice cleanup of the early-return ladder",
+          body:
+            "Collapsing the bearer-token path into a positive condition reads better than the previous chain of negations.",
+        },
+      ],
+    },
+    {
+      id: "br3",
+      title: "Telemetry — span name correction",
+      summary: "Rename the HTTP server span from `request` to `http.server` to match the OTel semantic conventions.",
+      files: ["src/telemetry/http.ts"],
+      patch: `diff --git a/src/telemetry/http.ts b/src/telemetry/http.ts
+--- a/src/telemetry/http.ts
++++ b/src/telemetry/http.ts
+@@ -7,7 +7,7 @@ export function withHttpSpan<T>(req: Request, fn: () => Promise<T>): Promise<T>
+   const tracer = trace.getTracer("api");
+-  return tracer.startActiveSpan("request", async (span) => {
++  return tracer.startActiveSpan("http.server", async (span) => {
+     span.setAttribute("http.method", req.method);
+     span.setAttribute("http.target", new URL(req.url).pathname);
+     try {
+`,
+      feedback: [
+        {
+          id: "brf5",
+          severity: "nit",
+          title: "Dashboards filtered by `request` will go blank",
+          body:
+            "This is the right rename, but the Grafana board at grafana.internal/d/api-latency filters on `name = \"request\"`. Update the dashboard query in the same PR or call it out in the rollout note so on-call doesn't think traffic dropped.",
+          ref: "src/telemetry/http.ts:9",
+        },
+      ],
+    },
+  ];
+}
+
 // Stable mock unified diffs + AI review feedback used by the code-review phase.
 export function seedReviewChapters(specSlug: string): ReviewChapter[] {
   return [

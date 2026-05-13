@@ -6,6 +6,7 @@ import {
   refinementBase,
   refinementFollowups,
   seedReviewChapters,
+  seedBranchReviewChapters,
 } from "../data/seed";
 import type {
   Project,
@@ -65,6 +66,7 @@ interface State {
   runArchitect(specSlug: string): Promise<void>;
   // review
   ensureReview(specSlug: string): ReviewChapter[];
+  startBranchReview(projectId: string, branch: string, base?: string): string;
   // chat
   sendChat(sessionId: string, text: string): Promise<void>;
 }
@@ -400,6 +402,16 @@ export const useStore = create<State>((set, get) => ({
     return chapters;
   },
 
+  startBranchReview(projectId, branch, base = "main") {
+    const id = branchReviewId(branch);
+    const chapters = seedBranchReviewChapters(branch, base);
+    set((st) => ({
+      review: { ...st.review, [id]: chapters },
+      view: { kind: "review-branch", projectId, branch, base },
+    }));
+    return id;
+  },
+
   async sendChat(sessionId, text) {
     set((st) => ({
       chatLog: {
@@ -424,6 +436,10 @@ export const useStore = create<State>((set, get) => ({
 // Module-level guard so concurrent calls (e.g. StrictMode double-mount) don't
 // each kick off their own walk through the steps.
 const archRunLock = new Set<string>();
+
+export function branchReviewId(branch: string): string {
+  return "branch:" + branch;
+}
 
 function defaultTitle(kind: SessionKind): string {
   if (kind === "chat") return "New chat";
